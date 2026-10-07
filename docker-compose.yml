@@ -1,0 +1,21 @@
+services:
+  master:
+    build: .
+    command: python master.py
+    ports: ["8000:8000"]
+    environment:
+      SECONDARIES: http://secondary1:8000,http://secondary2:8000
+
+  secondary1:
+    build: .
+    command: python secondary.py
+    ports: ["8001:8000"]
+    environment:
+      DELAY: 5
+
+  secondary2:
+    build: .
+    command: python secondary.py
+    ports: ["8002:8000"]
+    environment:
+      DELAY: 0
