@@ -1,40 +1,28 @@
-"""Master node, appends messages and replicates them to all the secondaries"""
+"""Connects HTTP to MasterNode"""
 
 import os
 import logging
 from concurrent.futures import ThreadPoolExecutor
 import requests
 from flask import Flask, request
+from nodes import MasterNode
+from transport import HttpTransport
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
 app = Flask(__name__)
 
 messages = []
 SECONDARIES = [url for url in os.environ.get("SECONDARIES", "").split(",") if url]
-
-
-def send_to_secondary(url, message):
-    logging.info(f"Sending '{message}' to {url}")
-    requests.post(url + "/replicate", json={"message": message})
-    logging.info(f"ACK from {url}")
-
+master = MasterNode(HttpTransport(), SECONDARIES)
 
 @app.route("/messages", methods=["GET"])
 def list_messages():
-    return {"messages": messages}
+    return {"messages": master.list_msgs()}
 
 
 @app.route("/messages", methods=["POST"])
 def append_message():
-    message = request.json["message"]
-    messages.append(message)
-    logging.info(f"Appended '{message}', replicating")
-
-    with ThreadPoolExecutor() as pool:
-        for url in SECONDARIES:
-            pool.submit(send_to_secondary, url, message)
-
-    logging.info(f"All ACKs received for '{message}'")
+    master.append_msg(request.json["message"])
     return {"status": "ok"}
 
 

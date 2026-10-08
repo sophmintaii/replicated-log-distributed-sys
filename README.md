@@ -31,4 +31,4 @@ chmod +x demo.sh
 ./demo.sh
 ```
 
-It starts the master and two secondaries, sends one message, prints the messages on each node, then shuts everything back down.
+It runs the harness test first, then starts the master and two secondaries, sends one message, prints the messages on each node, then shuts everything back down.

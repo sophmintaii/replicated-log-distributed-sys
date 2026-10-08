@@ -7,6 +7,12 @@ set -e
 # pip install -q -r requirements.txt
 
 # replicated log iteration 1
+
+echo
+echo "running harness test on iteration 1"
+python -m pytest -v test_harness.py
+
+echo
 if ! docker ps > /dev/null 2>&1; then
     echo "Docker is not running, try colima start or other tool to start the Docker."
     exit 1
