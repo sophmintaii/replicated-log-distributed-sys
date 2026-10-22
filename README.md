@@ -20,8 +20,8 @@ chmod +x setup.sh
 
 The client sends two messages to an echo server and prints the replies. Server output is in `server.log`.
 
-## Iteration 1
 
+## Iteration 1
 
 ### Run the demo
 Start Docker first (through colima or another tool), then:
@@ -32,3 +32,24 @@ chmod +x demo.sh
 ```
 
 It runs the harness test first, then starts the master and two secondaries, sends one message, prints the messages on each node, then shuts everything back down.
+
+### Run harness tests only
+```bash
+python -m pytest -v
+```
+
+
+## Iteration 2: write concern and total order
+
+### Run the demo
+Start Docker first (through colima or another tool), then:
+
+```bash
+chmod +x demo.sh
+./demo.sh
+```
+
+### Run harness tests only
+```bash
+python -m pytest -v
+```

@@ -21,11 +21,12 @@ def list_messages():
 
 @app.route("/replicate", methods=["POST"])
 def replicate():
+    msg_id = request.json["id"]
     message = request.json["message"]
-    logging.info(f"Got '{message}' from master, sleeping {DELAY}s")
+    logging.info(f"Got #{msg_id} '{message}' from master, sleeping {DELAY}s")
     time.sleep(DELAY)
     messages.append(message)
-    return {"status": secondary.receive(message)}
+    return {"status": secondary.receive(msg_id, message)}
 
 
 if __name__ == "__main__":

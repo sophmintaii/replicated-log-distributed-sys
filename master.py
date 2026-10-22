@@ -13,6 +13,8 @@ app = Flask(__name__)
 
 messages = []
 SECONDARIES = [url for url in os.environ.get("SECONDARIES", "").split(",") if url]
+MAX_W = len(SECONDARIES) + 1
+
 master = MasterNode(HttpTransport(), SECONDARIES)
 
 @app.route("/messages", methods=["GET"])
@@ -22,8 +24,12 @@ def list_messages():
 
 @app.route("/messages", methods=["POST"])
 def append_message():
-    master.append_msg(request.json["message"])
-    return {"status": "ok"}
+    message = request.json["message"]
+    w = int(request.json.get("w", MAX_W))
+    if not 1 <= w <= MAX_W:
+        return {"error": f"w must be between 1 and {MAX_W}"}, 400
+    msg_id = master.append_msg(message, w)
+    return {"status": "ok", "id": msg_id}
 
 
 if __name__ == "__main__":

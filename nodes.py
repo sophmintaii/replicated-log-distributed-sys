@@ -1,18 +1,24 @@
 import logging
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import threading
 
 
 class SecondaryNode:
     def __init__(self):
-        self.messages = []
+        self.messages = {}
 
-    def receive(self, message):
-        self.messages.append(message)
+    def receive(self, msg_id, message):
+        self.messages[msg_id] = message
         logging.info(f"Saved '{message}'")
         return "ack"
 
     def list_msgs(self):
-        return list(self.messages)
+        result = []
+        msg_id = 1
+        while msg_id in self.messages:
+            result.append(self.messages[msg_id])
+            msg_id += 1
+        return result
 
 
 class MasterNode:
@@ -20,16 +26,30 @@ class MasterNode:
         self.transport = transport
         self.secondaries = secondaries
         self.messages = []
+        self.lock = threading.Lock()
+        self.pool = ThreadPoolExecutor(max_workers=50)
 
-    def append_msg(self, message):
-        self.messages.append(message)
-        logging.info(f"Appended '{message}', replicating")
+    def append_msg(self, message, w=None):
+        if w is None:
+            w = len(self.secondaries) + 1
+        with self.lock:
+            self.messages.append(message)
+            msg_id = len(self.messages)
+        logging.info(f"Appended #{msg_id} '{message}', replicating")
 
-        with ThreadPoolExecutor() as pool:
-            for secondary in self.secondaries:
-                pool.submit(self.transport.send, self, secondary, message)
+        futures = [self.pool.submit(self.transport.send, self, secondary, msg_id, message) 
+                   for secondary in self.secondaries]
 
-        logging.info(f"All ACKs received for '{message}'")
+        acks_needed = w - 1
+        acks = 0
+        if acks_needed > 0:
+            for _ in as_completed(futures):
+                acks += 1
+                if acks == acks_needed:
+                    break
+
+        logging.info(f"#{msg_id}: got {acks} ACK(s) from secondaries")
+        return msg_id
 
     def list_msgs(self):
         return list(self.messages)
