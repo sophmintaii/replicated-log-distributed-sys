@@ -27,6 +27,7 @@ The client sends two messages to an echo server and prints the replies. Server o
 Start Docker first (through colima or another tool), then:
 
 ```bash
+git checkout iteration-1
 chmod +x demo.sh
 ./demo.sh
 ```
