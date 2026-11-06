@@ -103,3 +103,64 @@ def test_secondary_hides_messages_after_a_gap():
     # m3 received -> now we show m4 too
     secondary.receive(3, "m3")
     assert secondary.list_msgs() == ["m1", "m2", "m3", "m4"]
+
+def test_retry_until_secondary_comes_back():
+    """iteration 3"""
+    transport = MockedTransport()
+    secondary1 = SecondaryNode()
+    secondary2 = SecondaryNode()
+    master = MasterNode(transport, [secondary1, secondary2], max_retry_delay=1)
+
+    # s2 is donw and rejoins later
+    transport.disconnect(master, secondary2)
+ 
+    assert timed(master.append_msg, "m1", 1) < 0.5
+    assert timed(master.append_msg, "m2", 2) < 0.5
+ 
+    blocked_client = threading.Thread(target=master.append_msg, args=("m3", 3))
+    blocked_client.start()
+    time.sleep(1)
+    assert blocked_client.is_alive()
+ 
+    assert timed(master.append_msg, "m4", 1) < 0.5
+    assert secondary2.list_msgs() == []
+
+    # rejoin
+    transport.reconnect(master, secondary2)
+    blocked_client.join(timeout=3)
+    #client unblocked
+    assert not blocked_client.is_alive()
+ 
+    time.sleep(1.5)
+    assert secondary2.list_msgs() == ["m1", "m2", "m3", "m4"]
+ 
+ 
+def test_deduplication():
+    """iteration 3"""
+    transport = MockedTransport()
+    secondary1 = SecondaryNode()
+    master = MasterNode(transport, [secondary1], first_retry_delay=0.1)
+ 
+    # s1 saves m1 but the master gets an error twice -> sends m1 three times
+    transport.fail_after_save(master, secondary1, times=2)
+    master.append_msg("m1")
+ 
+    assert secondary1.list_msgs() == ["m1"]
+ 
+ 
+def test_total_order_when_a_message_is_lost():
+    """iteration 3"""
+    transport = MockedTransport()
+    secondary1 = SecondaryNode()
+    master = MasterNode(transport, [secondary1])
+ 
+    master.append_msg("m1")
+    transport.fail_before_save(master, secondary1, times=1)
+    master.append_msg("m2", 1)
+    time.sleep(0.1)
+    master.append_msg("m3", 1)
+    time.sleep(0.1)
+    assert secondary1.list_msgs() == ["m1"]
+ 
+    time.sleep(1)
+    assert secondary1.list_msgs() == ["m1", "m2", "m3"]

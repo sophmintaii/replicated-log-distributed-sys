@@ -1,6 +1,7 @@
 """Connects SecondaryNode to HTTP."""
 
 import os
+import random
 import time
 import logging
 from flask import Flask, request
@@ -11,6 +12,7 @@ app = Flask(__name__)
 
 messages = []
 DELAY = int(os.environ.get("DELAY", 0))  # for testing without harness test
+ERROR_RATE = float(os.environ.get("ERROR_RATE", 0))
 secondary = SecondaryNode()
 
 
@@ -25,8 +27,18 @@ def replicate():
     message = request.json["message"]
     logging.info(f"Got #{msg_id} '{message}' from master, sleeping {DELAY}s")
     time.sleep(DELAY)
-    messages.append(message)
-    return {"status": secondary.receive(msg_id, message)}
+
+    if random.random() < ERROR_RATE:
+        logging.info(f"Simulated error for #{msg_id} BEFORE saving")
+        return {"error": "simulated failure"}, 500
+
+    secondary.receive(msg_id, message)
+
+    if random.random() < ERROR_RATE:
+        logging.info(f"Simulated error for #{msg_id} AFTER saving")
+        return {"error": "simulated failure"}, 500
+
+    return {"status": "ack"}
 
 
 if __name__ == "__main__":

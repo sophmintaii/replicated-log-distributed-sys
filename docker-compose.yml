@@ -11,11 +11,13 @@ services:
     command: python secondary.py
     ports: ["8001:8000"]
     environment:
-      DELAY: 0
+      # DELAY: 0
+      ERROR_RATE: 0.3
 
   secondary2:
     build: .
     command: python secondary.py
     ports: ["8002:8000"]
     environment:
-      DELAY: 10
+      # DELAY: 10
+      ERROR_RATE: 0.3

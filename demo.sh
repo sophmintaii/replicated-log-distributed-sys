@@ -1,10 +1,10 @@
 #!/bin/bash
 set -e
 
-# replicated log iteration 2
+# replicated log iteration 3
 
 echo
-echo "running harness tests (iterations 1 and 2)"
+echo "running harness tests (iterations 1, 2 and 3)"
 python -m pytest -v test_harness.py
 
 echo
@@ -19,7 +19,8 @@ else
     COMPOSE="docker-compose"
 fi
 
-$COMPOSE up -d --build
+# start without secondary2, it joins later
+$COMPOSE up -d --build master secondary1
 sleep 3
 
 # def send a message with write concern w: post <message> <w>
@@ -30,42 +31,49 @@ post() {
 }
 
 echo
-echo "msg1 w=1 (fast, only master):"
+echo "msg1 w=1 (ok, only master):"
 time post msg1 1
 
 echo
-echo "msg2 w=2 (fast, secondary1 is enough):"
+echo "msg2 w=2 (ok, secondary1 is enough):"
 time post msg2 2
 
 echo
-echo "msg3 w=3 (blocks appx 10s because of secondary2, runs in background):"
+echo "msg3 w=3 (waits until secondary2 is up, runs in background):"
 post msg3 3 &
 sleep 1
 
 echo
-echo "msg4 w=1 (not blocked by msg3):"
+echo "msg4 w=1 (ok, not blocked by msg3):"
 time post msg4 1
 
 echo
-echo "Messages right now (secondary2 is behind):"
+echo "Messages right now (secondary2 is down):"
 echo "master:     $(curl -s localhost:8000/messages)"
 echo "secondary1: $(curl -s localhost:8001/messages)"
-echo "secondary2: $(curl -s localhost:8002/messages)"
+
+echo
+echo "Starting secondary2..."
+$COMPOSE up -d secondary2
 
 echo
 echo "Waiting for msg3 to finish..."
 wait
-sleep 2
+sleep 10
 
 echo
-echo "Messages after waiting:"
+echo "Messages after secondary2 joined:"
 echo "master:     $(curl -s localhost:8000/messages)"
 echo "secondary1: $(curl -s localhost:8001/messages)"
 echo "secondary2: $(curl -s localhost:8002/messages)"
 
 echo
-echo "Master logs:"
-$COMPOSE logs master | grep -E "Appended|Sending|ACK"
+echo "Master retries:"
+$COMPOSE logs master | grep -i "retry" | head -10
+
+echo
+echo "Secondary errors and duplicates:"
+$COMPOSE logs secondary1 secondary2 | grep -iE "simulated|duplicate"
 
 echo
 $COMPOSE down
