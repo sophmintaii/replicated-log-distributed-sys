@@ -46,9 +46,29 @@ python -m pytest -v
 Start Docker first (through colima or another tool), then:
 
 ```bash
+git checkout iteration-2
 chmod +x demo.sh
 ./demo.sh
 ```
+
+### Run harness tests only
+```bash
+python -m pytest -v
+```
+
+
+## Iteration 3: retries, deduplication and total order
+
+### Run the demo
+Start Docker first (through colima or another tool), then:
+
+```bash
+git checkout main
+chmod +x demo.sh
+./demo.sh
+```
+
+It runs the harness tests first, then starts the master and secondary1 only (secondary2 is down), sends 4 messages with different `w`, starts secondary2 and checks that it receives all the messages it missed. Both secondaries randomly fail 30% of requests, so the logs at the end show the master's retries and the duplicates that secondaries ignore.
 
 ### Run harness tests only
 ```bash
